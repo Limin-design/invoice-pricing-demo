@@ -1,0 +1,10 @@
+code,name,family,cost,price,qty_sold,loss_per_unit,money_lost
+P0042,Mar Azul Sardines kg,Fish,15.371,14.27,35.0,1.9087,66.81
+P0073,Casa Boa Canned Tuna 120g,Grocery,4.31,3.99,53.0,0.5458,28.93
+P0079,Aurora Tomato Pulp 500g,Grocery,5.611,5.17,35.0,0.7336,25.68
+P0014,Aurora Cheese Slices 200g,Dairy,2.105,2.05,122.0,0.171,20.87
+P0105,Casa Boa Crisps Salted 150g,Snacks,1.226,1.46,527.0,0.039,20.56
+P0080,Vale Verde Tomato Pulp 500g,Grocery,2.058,2.0,67.0,0.1712,11.47
+P0070,Mar Azul Olive Oil 750ml,Grocery,1.7,1.65,55.0,0.1434,7.89
+P0107,Serra Gummies 90g,Snacks,3.188,3.48,17.0,0.3587,6.1
+P0102,Serra Sparkling Water 25cl,Water,1.214,1.18,10.0,0.1698,1.7
