@@ -76,7 +76,7 @@ invoicepricing/
   apply.py     simulate / write / undo with fingerprint, backup, undo log, compare-and-swap
   report.py    read-only: products sold below cost ranked by money lost; stale costs; CSV for Power BI
   demo_data.py synthetic store, 12 months of sales and three sample invoices with real-world traps
-tests/         21 tests, including regressions of the audit findings
+tests/         22 tests, including regressions of the audit findings
 ```
 
 ## Run it
