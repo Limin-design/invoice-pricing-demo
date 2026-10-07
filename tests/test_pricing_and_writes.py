@@ -136,3 +136,21 @@ def test_undo_never_overwrites_a_later_change(store, tmp_path):
     with pytest.raises(apply.RecordChanged):
         apply.undo(store, log)
     assert product(store, "P1")["price"] == 1.99
+
+
+def _write_invoice(path, rows, bases):
+    from conftest import make_qr
+    path.write_text("QR: " + make_qr(bases) + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def test_summary_is_read_only_and_flags_what_needs_a_person(store, tmp_path):
+    import hashlib
+    from invoicepricing.cli import summarize
+    before = hashlib.sha256(open(store, "rb").read()).hexdigest()
+    clean = _write_invoice(tmp_path / "a.txt", ["1001 CRISPS 150G 10 1,10 11,00 23"], {23: 11.0})
+    generic = _write_invoice(tmp_path / "b.txt", ["1002 BISCUITS ASSORTED 10 1,05 10,50 23"], {23: 10.5})
+    s1, s2 = summarize(store, clean), summarize(store, generic)
+    assert s1["proven"] and s1["ready_for_one_tap_approval"] and s1["actions"] == {"cost_up": 1}
+    assert s2["proven"] and not s2["ready_for_one_tap_approval"] and s2["needs_person"]
+    assert hashlib.sha256(open(store, "rb").read()).hexdigest() == before  # nothing was written

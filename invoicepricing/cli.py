@@ -4,11 +4,13 @@
     python -m invoicepricing read samples/invoice_01_clean.txt
     python -m invoicepricing price samples/invoice_01_clean.txt            # simulate
     python -m invoicepricing price samples/invoice_01_clean.txt --write    # write what was simulated
+    python -m invoicepricing summary samples/invoice_01_clean.txt          # JSON, read-only (for n8n)
     python -m invoicepricing undo logs/write_....json
     python -m invoicepricing report
 """
 
 import argparse
+import json
 import sys
 
 from . import apply, demo_data, lines, pricing, proof, qr, report
@@ -63,6 +65,35 @@ def cmd_price(args):
         print(f"Written. Undo log: {log}")
 
 
+def summarize(db_path, invoice_path):
+    """Read-only summary of one invoice for automations: never writes, never approves."""
+    fiscal, parsed, rejected = load_invoice(invoice_path)
+    result = proof.prove(parsed, fiscal)
+    conn = connect(db_path)
+    proposals = pricing.propose(conn, fiscal.supplier_nif, parsed)
+    conn.close()
+    actions = {}
+    for p in proposals:
+        actions[p.action] = actions.get(p.action, 0) + 1
+    needs_person = [f"{p.product_code}: {'; '.join(p.reasons + p.warnings)}"
+                    for p in proposals if p.action in ("needs_decision", "refused", "unlinked")]
+    return {
+        "invoice": fiscal.number,
+        "supplier_nif": fiscal.supplier_nif,
+        "total": round(fiscal.total, 2),
+        "proven": result.proven,
+        "problems": result.problems,
+        "rows_not_read": len(rejected),
+        "actions": actions,
+        "needs_person": needs_person,
+        "ready_for_one_tap_approval": result.proven and not needs_person and not rejected,
+    }
+
+
+def cmd_summary(args):
+    print(json.dumps(summarize(DB, args.invoice), ensure_ascii=False))
+
+
 def cmd_undo(args):
     apply.undo(DB, args.log)
     print("Undone.")
@@ -89,6 +120,9 @@ def main(argv=None):
     p.add_argument("invoice")
     p.add_argument("--write", action="store_true")
     p.set_defaults(fn=cmd_price)
+    s = sub.add_parser("summary")
+    s.add_argument("invoice")
+    s.set_defaults(fn=cmd_summary)
     u = sub.add_parser("undo")
     u.add_argument("log")
     u.set_defaults(fn=cmd_undo)

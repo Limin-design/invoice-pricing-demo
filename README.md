@@ -83,16 +83,30 @@ tests/         21 tests, including regressions of the audit findings
 
 ```bash
 pip install pytest
-python -m pytest -q                                   # 21 tests
+python -m pytest -q                                   # 22 tests
 python -m invoicepricing build                        # synthetic store + sample invoices
 python -m invoicepricing price samples/invoice_01_clean.txt          # simulate
 python -m invoicepricing price samples/invoice_01_clean.txt --write  # write the simulated plan
 python -m invoicepricing undo logs/<the log printed above>
+python -m invoicepricing summary samples/invoice_02_traps.txt   # read-only JSON for automations
 python -m invoicepricing report                       # below-cost report + CSV for Power BI
 ```
 
 The three sample invoices show a clean invoice that proves, an invoice with the traps from the audits
 (two lines for one product, a 6,00% discount, a generic product), and an invoice with a missing page.
+
+## Dashboard
+
+The [Power BI model](powerbi/README.md) answers one question: where is the store losing margin because
+prices fell behind costs? A static preview with the same measures (`python powerbi/preview_dashboard.py`):
+
+![Pricing health dashboard](docs/dashboard.png)
+
+## Automation
+
+[`automation/`](automation/README.md) holds an n8n workflow that triages each new invoice: it runs the
+read-only `summary` command, logs the invoice to a Google Sheet and emails either "ready to approve" or
+"needs a person" with the reasons. It never writes a price.
 
 ## What's not here, and why
 

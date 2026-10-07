@@ -1,0 +1,128 @@
+{
+  "name": "Supplier invoice intake (read-only triage)",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/data/inbox",
+        "events": ["add"],
+        "options": { "ignored": "**/*.!(txt)" }
+      },
+      "id": "a1f0c7d2-0001-4c1e-9a10-000000000001",
+      "name": "New invoice text in inbox",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd /app && python -m invoicepricing summary \"{{ $json.path }}\""
+      },
+      "id": "a1f0c7d2-0002-4c1e-9a10-000000000002",
+      "name": "Summarise invoice (never writes)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = JSON.parse($input.first().json.stdout);\ns.received_at = new Date().toISOString();\ns.needs_person_text = s.needs_person.join('\\n') || '-';\nreturn [{ json: s }];"
+      },
+      "id": "a1f0c7d2-0003-4c1e-9a10-000000000003",
+      "name": "Parse summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "id", "value": "YOUR_SHEET_ID" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Invoices" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Received": "={{ $json.received_at }}",
+            "Invoice": "={{ $json.invoice }}",
+            "Supplier NIF": "={{ $json.supplier_nif }}",
+            "Total": "={{ $json.total }}",
+            "Proven by QR": "={{ $json.proven }}",
+            "Needs a person": "={{ $json.needs_person.length }}"
+          }
+        }
+      },
+      "id": "a1f0c7d2-0004-4c1e-9a10-000000000004",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [860, 160],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ready_for_one_tap_approval }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1f0c7d2-0005-4c1e-9a10-000000000005",
+      "name": "Ready for one-tap approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 400]
+    },
+    {
+      "parameters": {
+        "sendTo": "manager@example.com",
+        "subject": "=Invoice {{ $json.invoice }} proven: ready to approve",
+        "message": "=Invoice {{ $json.invoice }} from {{ $json.supplier_nif }} ({{ $json.total }} EUR) adds up against the fiscal QR.\nProposed changes: {{ JSON.stringify($json.actions) }}\nOpen the app to approve. Nothing has been written.",
+        "options": {}
+      },
+      "id": "a1f0c7d2-0006-4c1e-9a10-000000000006",
+      "name": "Email: ready to approve",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1080, 320],
+      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } }
+    },
+    {
+      "parameters": {
+        "sendTo": "manager@example.com",
+        "subject": "=Invoice {{ $json.invoice }} needs a person",
+        "message": "=Invoice {{ $json.invoice }} ({{ $json.total }} EUR) cannot be pre-approved.\nProven by QR: {{ $json.proven }} {{ $json.problems.join('; ') }}\nRows not read: {{ $json.rows_not_read }}\nDecisions needed:\n{{ $json.needs_person_text }}",
+        "options": {}
+      },
+      "id": "a1f0c7d2-0007-4c1e-9a10-000000000007",
+      "name": "Email: needs a person",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1080, 480],
+      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } }
+    }
+  ],
+  "connections": {
+    "New invoice text in inbox": { "main": [[{ "node": "Summarise invoice (never writes)", "type": "main", "index": 0 }]] },
+    "Summarise invoice (never writes)": { "main": [[{ "node": "Parse summary", "type": "main", "index": 0 }]] },
+    "Parse summary": {
+      "main": [[
+        { "node": "Log to Google Sheets", "type": "main", "index": 0 },
+        { "node": "Ready for one-tap approval?", "type": "main", "index": 0 }
+      ]]
+    },
+    "Ready for one-tap approval?": {
+      "main": [
+        [{ "node": "Email: ready to approve", "type": "main", "index": 0 }],
+        [{ "node": "Email: needs a person", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

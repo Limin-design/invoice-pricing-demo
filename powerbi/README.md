@@ -31,6 +31,7 @@ Revenue ex VAT = SUMX ( fact_sales, fact_sales[revenue] / ( 1 + RELATED ( dim_pr
 Cost of goods = SUMX ( fact_sales, fact_sales[qty] * RELATED ( dim_product[cost] ) )
 Gross margin = [Revenue ex VAT] - [Cost of goods]
 Gross margin % = DIVIDE ( [Gross margin], [Revenue ex VAT] )
+Markup % = DIVIDE ( [Revenue ex VAT], [Cost of goods] ) - 1   -- same basis as dim_family[usual_margin] (% over cost)
 Money lost below cost (90d) = SUM ( below_cost_90d[money_lost] )
 Stale cost revenue % =
     DIVIDE ( CALCULATE ( [Revenue], dim_product[cost_date] < DATE ( 2024, 9, 30 ) ), [Revenue] )
@@ -40,10 +41,18 @@ Prices changed = COUNTROWS ( FILTER ( fact_price_changes, fact_price_changes[rea
 ## Pages
 
 1. **Overview**: cards for Revenue, Gross margin %, Stale cost revenue % and Money lost below cost (90d);
-   revenue by month (line); gross margin % by family against `dim_family[usual_margin]` (bars + target).
+   revenue by month (line); markup % by family against `dim_family[usual_margin]` (bars + target).
+   `usual_margin` is a markup over cost, so it is compared with Markup %, not with Gross margin %.
 2. **Below cost**: table from `below_cost_90d` sorted by money lost, with name, family, cost, price and
    units sold. This is the to-do list for the next price review.
 3. **Price changes**: table of `fact_price_changes`, old → new cost and price, with the reason
    (`cost_up`, `cost_down`, `undo`).
 
 Save the file as `powerbi/pricing_health.pbix` and a screenshot of each page in `docs/`.
+
+## Preview without Power BI
+
+`python powerbi/preview_dashboard.py` computes the same measures in pandas and draws the overview
+and the below-cost list to `docs/dashboard.png`:
+
+![Pricing health dashboard](../docs/dashboard.png)
